@@ -16,6 +16,13 @@ class Device(object):
         if not self.TCP:
             self.connect_usb()
     
+    def __eq__(self, other):
+        return (
+            self.__class__ == other.__class__ and
+            self.device == other.device and
+            self.serial_trans == other.serial_trans
+        )
+    
     def connect_tcp(self):
         cmd = ['adb', 'connect', self.device]
         response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
