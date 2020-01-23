@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import re
+from tools.logger import Logger
 
 class Device(object):
     def __init__(self, device=None, TCP=True):
@@ -19,17 +20,17 @@ class Device(object):
         cmd = ['adb', 'connect', self.device]
         response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
         if re.search('connected to ' + self.device, response):
-            print('Successfully connected to device with TCP')
+            Logger.log_success('Successfully connected to device [' + self.device + '] with TCP.')
             self.connected = True
         elif re.search('failed to connect', response):
-            print('Please check device adb debug status')
+            Logger.log_error('Unable to connect. Please check if info of device [' + self.device + '] is correct.')
             self.disconnect_tcp(self.device)
         
     def connect_usb(self):
         cmd = ['adb', '-t', self.serial_trans, 'wait-for-device']
-        print('waiting for device to be authorized')
+        Logger.log_info('Waiting for device [' + self.device + '] to be authorized...')
         subprocess.call(cmd)
-        print('device authorized')
+        Logger.log_success('Device [' + self.device + '] authorized and connected.')
         self.connected = True
 
     def assign_serial(self):
@@ -58,7 +59,7 @@ class Device(object):
             args (string): Command to execute.
         """
         cmd = ['adb', '-t', self.serial_trans, 'shell'] + args.split(' ')
-        #Logger.log_debug(str(cmd))
+        Logger.log_debug('[' + self.device + '] ' + ' '.join(cmd))
         subprocess.call(cmd)
 
     @classmethod
@@ -68,16 +69,16 @@ class Device(object):
             try:
                 response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
                 if response == '':
-                    print('Service already started')
+                    Logger.log_info('ADB Server is already started.')
                 elif 'start' in response:
-                    print('Started successfully')
+                    Logger.log_success('ADB Server started successfully.')
                 else:
-                    print('Unexpected error, trying to kill and restart server')
+                    Logger.log_error('Unexpected error, trying to kill and restart server.')
                     cls.kill_server()
                     continue
                 break
             except FileNotFoundError:
-                print('Please install ADB correctly and include it in PATH')
+                Logger.log_error('Please install ADB correctly and include it in PATH.')
                 sys.exit()
 
     @staticmethod
@@ -86,11 +87,11 @@ class Device(object):
         try:
             response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
             if response == '':
-                print('Server killed successfully')
+                Logger.log_success('ADB Server killed successfully.')
             elif 'refused' in response:
-                print('Stop killing what\'s already dead!')
+                Logger.log_info('Stop killing what\'s already dead!')
         except FileNotFoundError:
-            print('Please install ADB correctly and include it in PATH')
+            Logger.log_error('Please install ADB correctly and include it in PATH.')
             sys.exit()
 
     @staticmethod
@@ -98,9 +99,9 @@ class Device(object):
         cmd = ['adb', 'disconnect', device]
         response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
         if re.search('error', response):
-            print('The device ' + device + ' is not actively connected.')
+            Logger.log_error('The device [' + device + '] is not actively connected.')
         elif re.search('disconnected', response):
-            print('Successfully disconnected device ' + device)
+            Logger.log_success('Successfully disconnected device [' + device + '].')
 
     @staticmethod
     def sanitize_device_info(string_list):
