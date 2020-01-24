@@ -1,18 +1,19 @@
 import subprocess
 import sys
 import re
-from tools.logger import Logger
+import time
 
 class Device(object):
-    def __init__(self, device=None, TCP=True):
-        self.device = device
+    def __init__(self, profile_dict):
+        self.profile = profile_dict
+        self.device = self.profile['device']['Device']
+        self.TCP = self.profile['device']['TCP']
+        self.Logger = self.profile['logger']
         self.serial_trans = ''
         self.connected = False
-        self.TCP = TCP
         self.start_server()
         if self.TCP:
             self.connect_tcp()
-        self.assign_serial()
         if not self.TCP:
             self.connect_usb()
     
@@ -27,18 +28,35 @@ class Device(object):
         cmd = ['adb', 'connect', self.device]
         response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
         if re.search('connected to ' + self.device, response):
-            Logger.log_success('Successfully connected to device [' + self.device + '] with TCP.')
+            self.Logger.success('Successfully connected to device [' + self.device + '] with TCP.')
             self.connected = True
+            self.assign_serial()
         elif re.search('failed to connect', response):
-            Logger.log_error('Unable to connect. Please check if info of device [' + self.device + '] is correct.')
-            self.disconnect_tcp(self.device)
+            self.Logger.error('Unable to connect. Please check if info of device [' + self.device + '] is correct.')
+            self.disconnect_tcp()
         
     def connect_usb(self):
-        cmd = ['adb', '-t', self.serial_trans, 'wait-for-device']
-        Logger.log_info('Waiting for device [' + self.device + '] to be authorized...')
-        subprocess.call(cmd)
-        Logger.log_success('Device [' + self.device + '] authorized and connected.')
-        self.connected = True
+        while True:
+            try:
+                cmd = ['adb', 'devices', '-l']
+                response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8').splitlines()
+                self.sanitize_device_info(response)
+                for item in response:
+                    if self.device in item:
+                        cmd = ['adb', '-t', self.serial_trans, 'wait-for-device']
+                        self.Logger.info('Waiting for device [' + self.device + '] to be authorized...')
+                        subprocess.call(cmd)
+                        self.Logger.success('Device [' + self.device + '] authorized and connected.')
+                        self.connected = True
+                        break
+                if not self.connected:
+                    self.Logger.error('Waiting for device [' + self.device + '] to be connected... Interrupt keyboard to stop waiting.')
+                    time.sleep(3)
+                    continue
+                break
+            except KeyboardInterrupt:
+                self.Logger.info('Stopped waiting device [' + self.device + '] to be connected.')
+                break
 
     def assign_serial(self):
         cmd = ['adb', 'devices', '-l']
@@ -66,49 +84,46 @@ class Device(object):
             args (string): Command to execute.
         """
         cmd = ['adb', '-t', self.serial_trans, 'shell'] + args.split(' ')
-        Logger.log_debug('[' + self.device + '] ' + ' '.join(cmd))
+        self.Logger.debug('[' + self.device + '] ' + ' '.join(cmd))
         subprocess.call(cmd)
 
-    @classmethod
-    def start_server(cls):
+    def start_server(self):
         cmd = ['adb', 'start-server']
         while True:
             try:
                 response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
                 if response == '':
-                    Logger.log_info('ADB Server is already started.')
+                    self.Logger.info('ADB Server is already started.')
                 elif 'start' in response:
-                    Logger.log_success('ADB Server started successfully.')
+                    self.Logger.success('ADB Server started successfully.')
                 else:
-                    Logger.log_error('Unexpected error, trying to kill and restart server.')
-                    cls.kill_server()
+                    self.Logger.error('Unexpected error, trying to kill and restart server.')
+                    self.kill_server()
                     continue
                 break
             except FileNotFoundError:
-                Logger.log_error('Please install ADB correctly and include it in PATH.')
+                self.Logger.error('Please install ADB correctly and include it in PATH.')
                 sys.exit()
 
-    @staticmethod
-    def kill_server():
+    def kill_server(self):
         cmd = ['adb', 'kill-server']
         try:
             response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
             if response == '':
-                Logger.log_success('ADB Server killed successfully.')
+                self.Logger.success('ADB Server killed successfully.')
             elif 'refused' in response:
-                Logger.log_info('Stop killing what\'s already dead!')
+                self.Logger.info('Stop killing what\'s already dead!')
         except FileNotFoundError:
-            Logger.log_error('Please install ADB correctly and include it in PATH.')
+            self.Logger.error('Please install ADB correctly and include it in PATH.')
             sys.exit()
 
-    @staticmethod
-    def disconnect_tcp(device):
-        cmd = ['adb', 'disconnect', device]
+    def disconnect_tcp(self):
+        cmd = ['adb', 'disconnect', self.device]
         response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
         if re.search('error', response):
-            Logger.log_error('The device [' + device + '] is not actively connected.')
+            self.Logger.error('The device [' + self.device + '] is not actively connected.')
         elif re.search('disconnected', response):
-            Logger.log_success('Successfully disconnected device [' + device + '].')
+            self.Logger.debug('Successfully disconnected device [' + self.device + '].')
 
     @staticmethod
     def sanitize_device_info(string_list):

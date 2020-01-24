@@ -1,0 +1,10 @@
+[Profile]
+name = emulator1
+
+[Device]
+device = 127.0.0.1:7555
+tcp = True
+
+[Advanced]
+debugging = True
+
