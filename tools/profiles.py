@@ -1,7 +1,9 @@
 import configparser
 import os
+import argparse
 from tools.logger import Logger
 from tools.adb import Device
+import random
 
 class Profile(object):
     def __init__(self, profile_dir=None):
@@ -30,7 +32,7 @@ class Profile(object):
         if not self.malformed():
             self.update_local()
         else:
-            Logger.log_error('Profile is malformed. Please check the file or create a new profile.')
+            self.logger.error('Profile is malformed. Please check the file or create a new profile.')
 
     def update_local(self):
         self.__read_device()
@@ -76,4 +78,22 @@ class Profile(object):
         self.config.set('Device', 'TCP', input('Enter TCP: '))
         self.config.set('Advanced', 'Debugging', input('Enter debugging: '))
         self.update_local()
+
+    def kill_consoles(self):
+        self.logger.receiver.kill()
         
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', '--profile',
+                        metavar=('PROFILE PATH'),
+                        help='Specify PROFILE to start'
+                        )
+    args = parser.parse_args()
+    if args:
+        if args.profile:
+            Profile(args.profile)
+        else:
+            print('No profile specified. Run script with -h for more information.')
+
+if __name__ == '__main__':
+    main()

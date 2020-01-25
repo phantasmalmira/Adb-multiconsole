@@ -2,6 +2,7 @@ from tools.profiles import Profile
 from tools.logger import Color
 from os import listdir
 from os.path import isfile, join
+from subprocess import Popen, CREATE_NEW_CONSOLE
 
 class AKBots():
     def __init__(self):
@@ -20,3 +21,14 @@ class AKBots():
         self.print_all_profiles()
         target = './profiles/' + self.profiles[int(input(Color.yellow + 'Which profile to enable? > ' + Color.END))]
         self.active.append(Profile(target))
+
+def main():
+    instance = AKBots()
+    instance.enable_profile()
+    input('Press enter to continue...')
+    for item in instance.active:
+        item.kill_consoles()
+
+if __name__ == '__main__':
+    main()
+

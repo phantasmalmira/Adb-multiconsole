@@ -14,7 +14,7 @@ class Device(object):
         self.start_server()
         if self.TCP:
             self.connect_tcp()
-        if not self.TCP:
+        else:
             self.connect_usb()
     
     def __eq__(self, other):
@@ -31,7 +31,7 @@ class Device(object):
             self.Logger.success('Successfully connected to device [' + self.device + '] with TCP.')
             self.connected = True
             self.assign_serial()
-        elif re.search('failed to connect', response):
+        elif re.search('failed to connect|unable to connect', response):
             self.Logger.error('Unable to connect. Please check if info of device [' + self.device + '] is correct.')
             self.disconnect_tcp()
         
@@ -119,11 +119,14 @@ class Device(object):
 
     def disconnect_tcp(self):
         cmd = ['adb', 'disconnect', self.device]
-        response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
-        if re.search('error', response):
-            self.Logger.error('The device [' + self.device + '] is not actively connected.')
-        elif re.search('disconnected', response):
-            self.Logger.debug('Successfully disconnected device [' + self.device + '].')
+        try:
+            response = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
+            if re.search('error', response):
+                self.Logger.error('The device [' + self.device + '] is not actively connected.')
+            elif re.search('disconnected', response):
+                self.Logger.debug('Successfully disconnected device [' + self.device + '].')
+        except subprocess.CalledProcessError:
+            self.Logger.error('An error has occured while trying to connect to device [' + self.device + '].')
 
     @staticmethod
     def sanitize_device_info(string_list):
