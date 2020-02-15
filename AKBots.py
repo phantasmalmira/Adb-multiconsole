@@ -22,6 +22,9 @@ class AKBots():
         target = './profiles/' + self.profiles[int(input(Color.yellow + 'Which profile to enable? > ' + Color.END))]
         self.active.append(Profile(target))
 
+    def create_profile(self):
+        self.active.append(Profile())
+
 def main():
     instance = AKBots()
     instance.enable_profile()

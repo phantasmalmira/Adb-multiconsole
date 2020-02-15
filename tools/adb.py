@@ -48,6 +48,7 @@ class Device(object):
                         subprocess.call(cmd)
                         self.Logger.success('Device [' + self.device + '] authorized and connected.')
                         self.connected = True
+                        self.assign_serial()
                         break
                 if not self.connected:
                     self.Logger.error('Waiting for device [' + self.device + '] to be connected... Interrupt keyboard to stop waiting.')
