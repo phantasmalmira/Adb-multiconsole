@@ -7,14 +7,9 @@ import time
 class Sender(object):
     def __init__(self, port):
         self.port = port
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.queue_send = []
-        while True:
-            try:
-                self.sock.connect(('localhost', self.port))
-                break
-            except ConnectionRefusedError:
-                pass
+        self.sock = None
+        self.connect(True)
 
     def send(self, _msg):
         _msg = bytes(_msg, encoding='utf-8')
@@ -26,9 +21,23 @@ class Sender(object):
             while self.queue_send:
                 self.sock.sendall(self.queue_send[0])
                 self.queue_send.pop(0)
-        except ConnectionResetError:
+                if self.queue_send:
+                    time.sleep(0.1)
+        except (ConnectionResetError, OSError):
             # stop sending temporarily since it has lost connection to the console
-            pass         
+            self.connect()
+            pass    
+
+    def connect(self, keep_retry=False):
+        while True:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                self.sock.connect(('localhost', self.port))
+                break
+            except ConnectionRefusedError:
+                pass
+            if not keep_retry:
+                break
 
 class Receiver(object):
     def __init__(self, port):
